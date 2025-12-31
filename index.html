@@ -772,10 +772,20 @@ document.addEventListener("keydown",e=>{
 });
 
 /* ===== WHATSAPP ===== */
-document.getElementById("whatsapp").onclick=()=>{
-  const tiempoTxt=document.getElementById("cronometro").textContent;
-  const txt=`Palabra Secreta\nIntentos: ${filaActual}/${maxIntentos}\nTiempo: ${tiempoTxt}`;
-  window.open("https://api.whatsapp.com/send?text="+encodeURIComponent(txt));
+document.getElementById("whatsapp").onclick = () => {
+  const tiempoTxt = document.getElementById("cronometro").textContent;
+  const acierto = filaActual <= maxIntentos && [...tablero.children[filaActual-1].children].every(c => c.classList.contains("verde"));
+  const resultado = acierto ? "¡He acertado la palabra! 🎉" : `No acerté 😢`;
+  const mensaje = `
+${resultado}
+
+Intentos: ${filaActual}/${maxIntentos}
+Tiempo: ${tiempoTxt}
+
+Juega también aquí:
+https://angelinoperez.github.io/palabra-secreta/
+  `;
+  window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(mensaje));
 };
 </script>
 
