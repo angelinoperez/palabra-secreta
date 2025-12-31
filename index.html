@@ -101,9 +101,10 @@ h1{
 
 .tecla.enter{ 
   min-width:44px; 
-  background:#4CAF50; /* verde más intenso para resaltar */
+  background:#4CAF50; 
   color:#fff; 
 }
+
 .tecla.del{ min-width:44px; }
 
 .tecla.verde{ background:#6aaa64; color:#fff; }
@@ -111,7 +112,7 @@ h1{
 .tecla.gris{ background:#787c7e; color:#fff; }
 
 #whatsapp{
-  display:none; /* oculto inicialmente */
+  display:none;
   margin-top:8px;
   padding:7px 14px;
   font-size:13px;
@@ -593,7 +594,7 @@ TRAMPA|Sl 91:3; Pr 29:25; Lu 21:34,35
 CARROS|Jue 4:13; 2Re 6:17
 SUENOS|Ec 5:3
 JUSTOS|1Pe 3:12
-`; // (aquí va tu listado completo de palabras y pistas, igual que antes)
+`;
 
 /* ===== PROCESADO AUTOMATICO ===== */
 const datos = textoDatos
@@ -623,7 +624,6 @@ let cronometroIniciado=false;
 const tablero=document.getElementById("tablero");
 const mensaje=document.getElementById("mensaje");
 const teclado=document.getElementById("teclado");
-const btnWhatsapp=document.getElementById("whatsapp");
 
 /* ===== CRONOMETRO ===== */
 function iniciarCronometro(){
@@ -692,56 +692,57 @@ function borrar(){
   tablero.children[filaActual].children[letrasFila].textContent="";
 }
 
-function enviar(){
-  if(letrasFila!==palabra.length) return;
+function enviar() {
+  if (letrasFila !== palabra.length) return;
 
-  const fila=tablero.children[filaActual];
-  const intento=[...fila.children].map(c=>c.textContent).join("");
+  iniciarCronometro();
 
-  const usadas=Array(palabra.length).fill(false);
-  const marcas=Array(palabra.length).fill("gris");
+  const fila = tablero.children[filaActual];
+  const intento = [...fila.children].map(c => c.textContent).join("");
 
-  for(let i=0;i<palabra.length;i++){
-    if(intento[i]===palabra[i]){
-      marcas[i]="verde";
-      usadas[i]=true;
+  const usadas = Array(palabra.length).fill(false);
+  const marcas = Array(palabra.length).fill("gris");
+
+  for (let i = 0; i < palabra.length; i++) {
+    if (intento[i] === palabra[i]) {
+      marcas[i] = "verde";
+      usadas[i] = true;
     }
   }
 
-  for(let i=0;i<palabra.length;i++){
-    if(marcas[i]!=="verde"){
-      for(let j=0;j<palabra.length;j++){
-        if(!usadas[j] && intento[i]===palabra[j]){
-          marcas[i]="amarillo";
-          usadas[j]=true;
+  for (let i = 0; i < palabra.length; i++) {
+    if (marcas[i] !== "verde") {
+      for (let j = 0; j < palabra.length; j++) {
+        if (!usadas[j] && intento[i] === palabra[j]) {
+          marcas[i] = "amarillo";
+          usadas[j] = true;
           break;
         }
       }
     }
   }
 
-  marcas.forEach((m,i)=>{
+  marcas.forEach((m, i) => {
     fila.children[i].classList.add(m);
-    colorearTecla(intento[i],m);
+    colorearTecla(intento[i], m);
   });
 
-  if(intento===palabra){
-    mensaje.textContent=`¡Felicidades! Acertaste en ${filaActual+1} intentos.`;
-    clearInterval(timer);
-    btnWhatsapp.style.display="inline-block";
+  filaActual++;
+  letrasFila = 0;
+
+  if (intento === palabra) {
+    mensaje.textContent = `¡Felicidades! Acertaste en ${filaActual} intento${filaActual > 1 ? "s" : ""}.`;
+    finalizarJuego();
     return;
   }
 
-  filaActual++;
-  letrasFila=0;
-
-  if(filaActual===6){
-    mensaje.textContent=`Pista: ${pista}`;
+  if (filaActual === 6) {
+    mensaje.textContent = `Pista: ${pista}`;
   }
-  if(filaActual===7){
-    mensaje.textContent=`No acertaste. La palabra correcta era: ${palabra}`;
-    clearInterval(timer);
-    btnWhatsapp.style.display="inline-block";
+
+  if (filaActual === maxIntentos) {
+    mensaje.textContent = `No acertaste. La palabra correcta era: ${palabra}`;
+    finalizarJuego();
   }
 }
 
@@ -756,6 +757,11 @@ function colorearTecla(l,c){
   });
 }
 
+function finalizarJuego() {
+  clearInterval(timer);
+  document.getElementById("whatsapp").style.display = "inline-block";
+}
+
 /* ===== TECLADO FISICO ===== */
 document.addEventListener("keydown",e=>{
   const k=e.key.toUpperCase();
@@ -766,7 +772,7 @@ document.addEventListener("keydown",e=>{
 });
 
 /* ===== WHATSAPP ===== */
-btnWhatsapp.onclick=()=>{
+document.getElementById("whatsapp").onclick=()=>{
   const tiempoTxt=document.getElementById("cronometro").textContent;
   const txt=`Palabra Secreta\nIntentos: ${filaActual}/${maxIntentos}\nTiempo: ${tiempoTxt}`;
   window.open("https://api.whatsapp.com/send?text="+encodeURIComponent(txt));
