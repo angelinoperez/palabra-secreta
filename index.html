@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🟩 Palabra Secreta</title>
+
+<style>
+body{
+  font-family: system-ui, sans-serif;
+  background:#f3f3f3;
+  text-align:center;
+  padding:8px;
+}
+
+h1{ 
+  margin:6px 0; 
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:6px;
+}
+
+#ayuda{
+  margin-left:10px;
+  padding:3px 8px;
+  font-size:12px;
+  border:none;
+  border-radius:4px;
+  background:#2196F3;
+  color:#fff;
+  cursor:pointer;
+}
+
+#cronometro{
+  font-size:15px;
+  margin-bottom:4px;
+}
+
+#mensaje{
+  min-height:38px;
+  font-weight:bold;
+  font-size:13px;
+  margin-bottom:6px;
+}
+
+/* ===== TABLERO ===== */
+#tablero{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  align-items:center;
+  margin-bottom:10px;
+}
+
+.fila{
+  display:grid;
+  gap:4px;
+}
+
+.cuadro{
+  width:38px;
+  height:38px;
+  border:2px solid #bbb;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  font-weight:bold;
+  background:#fff;
+}
+
+.verde{ background:#6aaa64; color:#fff; border-color:#6aaa64; }
+.amarillo{ background:#c9b458; color:#fff; border-color:#c9b458; }
+.gris{ background:#787c7e; color:#fff; border-color:#787c7e; }
+
+/* ===== TECLADO ===== */
+#teclado{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-items:center;
+}
+
+.fila-tecla{
+  display:flex;
+  gap:3px;
+}
+
+.tecla{
+  height:40px;
+  min-width:26px;
+  padding:0 4px;
+  font-size:16px;
+  font-weight:bold;
+  border:none;
+  border-radius:6px;
+  background:#d3d6da;
+  text-transform:uppercase;
+}
+
+.tecla.enter{ 
+  min-width:44px; 
+  background:#4CAF50; /* verde más intenso para resaltar */
+  color:#fff; 
+}
+.tecla.del{ min-width:44px; }
+
+.tecla.verde{ background:#6aaa64; color:#fff; }
+.tecla.amarillo{ background:#c9b458; color:#fff; }
+.tecla.gris{ background:#787c7e; color:#fff; }
+
+#whatsapp{
+  display:none; /* oculto inicialmente */
+  margin-top:8px;
+  padding:7px 14px;
+  font-size:13px;
+  border:none;
+  border-radius:6px;
+  background:#25D366;
+  color:#fff;
+  cursor:pointer;
+}
+
+/* ===== MOVILES PEQUEÑOS ===== */
+@media (max-width:420px){
+  .cuadro{
+    width:34px;
+    height:34px;
+    font-size:18px;
+  }
+  .tecla{
+    height:36px;
+    min-width:30px;
+    padding:0 3px;
+    font-size:16px;
+  }
+  .tecla.enter,
+  .tecla.del{
+    min-width:38px;
+  }
+  .fila-tecla{
+    gap:2px;
+  }
+}
+
+/* ===== MODAL ===== */
+#modalAyuda{
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.5);
+  justify-content:center;
+  align-items:center;
+  z-index:1000;
+}
+
+#modalContenido{
+  background:#fff;
+  padding:16px 20px;
+  max-width:360px;
+  width:90%;
+  border-radius:8px;
+  text-align:left;
+  white-space:pre-line;
+  font-size:14px;
+}
+
+#cerrarModal{
+  margin-top:12px;
+  padding:6px 12px;
+  border:none;
+  background:#2196F3;
+  color:#fff;
+  border-radius:6px;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🟩 Palabra Secreta 
+  <button id="ayuda">?</button>
+</h1>
+<div id="cronometro">--:--</div>
+<div id="mensaje"></div>
+<div id="tablero"></div>
+<div id="teclado"></div>
+<button id="whatsapp">Compartir por WhatsApp</button>
+
+<!-- ===== MODAL ===== -->
+<div id="modalAyuda">
+  <div id="modalContenido">
+    <div id="instrucciones"></div>
+    <button id="cerrarModal">Cerrar</button>
+  </div>
+</div>
+
+<script>
+/* ===== INSTRUCCIONES ===== */
+const instrucciones = `
+Instrucciones – Palabra Secreta
+
+Descubre la palabra del día.
+Tienes 7 intentos para acertarla.
+Escribe usando el teclado en pantalla o tu teclado físico.
+Pulsa ⏎ (Enter) para enviar tu intento.
+
+Colores de los cuadros:
+🟩 Verde → letra correcta y en la posición correcta.
+🟨 Amarillo → letra correcta pero en otra posición.
+⬛ Gris → letra no está en la palabra.
+
+Tras el 6º intento aparecerá una pista.
+
+Puedes compartir tu resultado por WhatsApp.
+`;
+
+document.getElementById("instrucciones").textContent=instrucciones;
+
+const modal=document.getElementById("modalAyuda");
+document.getElementById("ayuda").onclick=()=> modal.style.display="flex";
+document.getElementById("cerrarModal").onclick=()=> modal.style.display="none";
+window.onclick=e=>{ if(e.target==modal) modal.style.display="none"; };
+
+/* ===== PALABRAS + PISTAS ===== */
+const textoDatos = `
+CETRO|Gé 49:10; Sl 2:9
+HACER|Gál 6:9; 1Te 4:1; 1Te 4:10
+PEDIR|Dt 10:12; Job 23:12; Sl 2:8; Mt 6:8; Mt 7:7; Jn 14:13; Ef 3:20; 1Jn 5:14
+MARTA|Lu 10:41
+VIEJO|Sl 37:25
+RISAS|Pr 14:13
+ODIAR|Le 19:17; Sl 45:7; Sl 97:10; Pr 6:16; Pr 8:13; Am 5:15; Mt 24:9; Lu 6:27; Jn 7:7; Jn 15:25; 1Jn 3:15
+PARED|Da 5:5
+AVISO|Eze 33:4
+HORNO|Da 3:17
+SAULO|Hch 7:58; Hch 8:3; Hch 9:1; Hch 9:4
+PUROS|Hab 1:13
+HUESO|Gé 2:23; Pr 25:15; Jn 19:36
+CASCO|Ef 6:17
+BUENO|Gé 1:31; Gé 3:5; Pr 11:17; Ro 5:7
+CERCA|Sl 145:18
+MIRAR|Col 3:22; 1Pe 1:12
+ZARZA|Hch 7:30
+CEGAR|Gé 19:11; 2Co 4:4
+LEJOS|Hch 17:27
+BARUC|Jer 45:2
+LECHO|Heb 13:4
+DEBIL|2Co 12:10
+NACER|Sl 51:5; 2Ti 3:15
+LUCAS|Col 4:14
+JACOB|Gé 32:24
+PODER|Pr 28:16; Zac 4:6; Mr 5:30; Hch 1:8; 2Co 4:7; 2Co 12:9
+PESAR|Da 5:27
+RUINA|Eze 21:27
+RECTO|Job 1:8
+PLAGA|Éx 11:1
+BETEL|Gé 28:19
+OLIVO|Sl 52:8; Ro 11:17
+PACTO|Gé 15:18; Jer 31:31; Lu 22:20; Lu 22:29
+DUELO|Ec 7:2
+BROMA|Pr 26:19
+CLASE|2Pe 3:11
+GUSTO|1Cr 28:9
+TIBIO|Ap 3:16
+VIVIR|Job 14:14; 2Co 5:15; 1Jn 2:17
+SENOR|Dt 10:17; Mt 7:22; Mt 22:44; 1Co 7:39
+TOROS|Os 14:2; 1Co 9:9
+ANIMO|Hch 13:15
+TEMOR|1Jn 4:18
+PAGAR|Rut 2:12; Sl 116:12; Mt 22:21; 2Te 1:6
+DESEO|Sl 51:12; Sl 145:16; Gál 5:16; Flp 2:13; Snt 1:14; 1Pe 2:2
+ANCLA|Heb 6:19
+DIGNO|Mt 10:37; Heb 11:38
+CARNE|Gé 2:24; Job 33:25; Pr 23:20; Ro 8:5; 1Co 15:50; Gál 5:19
+MARCA|Eze 9:4; Ap 13:17
+CESAR|Mt 22:17; Mr 12:17; Jn 19:12; Jn 19:15; Hch 25:11
+PASOS|Jer 10:23; 1Pe 2:21
+TRONO|Sl 45:6; Is 6:1; Mt 25:31; Lu 1:32
+VIVOS|Lu 20:38; 1Te 4:15
+BURRO|Zac 9:9
+LIDIA|Hch 16:14
+PLATA|Pr 2:4; Eze 7:19; Sof 1:18
+HABIL|Pr 22:29
+JOSUE|Éx 33:11
+MARIA|1Mr 6:3; 2Lu 10:39; Lu 10:42; Jn 12:3; 3Mt 27:56; 4Lu 8:2; 5Mt 27:56; Hch 12:12
+ARENA|Gé 22:17; Ap 20:8
+NOVIA|Ap 21:9
+TOCON|Is 11:1; Da 4:15
+CELOS|Pr 6:34; Pr 14:30
+SENDA|Pr 4:18
+CRUEL|Pr 11:17; Pr 12:10
+FRUTO|Gé 3:3; Lu 8:15; Jn 15:2; Jn 15:8; Gál 5:22
+REDIL|Jn 10:16
+DEBER|Ec 12:13; Ro 13:8
+GENIO|Pr 16:32
+CANAS|Pr 16:31
+LIDER|Pr 28:16; Mt 23:10
+HERIR|Sl 78:40
+SELLO|Can 8:6; 2Co 1:22
+CIELO|Jn 3:13; 2Co 12:2
+CURAR|Pr 12:18; Lu 9:11; Lu 10:9; Ap 22:2
+COBRA|Is 11:8
+RUEDA|Eze 1:16
+MORAL|Ef 4:19
+FELIZ|1Cr 29:9; Sl 32:1; Sl 94:12; Sl 144:15; Pr 8:30; 1Ti 1:11
+ANDAR|Is 53:6; Miq 6:8
+BRAZO|Jn 12:38
+COMER|1Co 5:11; 2Te 3:10
+ARBOL|Gé 2:9; Sl 1:3; Da 4:14; Ap 2:7
+BROTE|Jer 23:5
+VALOR|Hch 4:31; Ef 6:20; Flp 1:14; 1Te 2:2
+ISAAC|Gé 22:9
+NINOS|Dt 31:12; Mt 11:16; Mt 18:3; Mt 19:14; Lu 10:21; 1Co 14:20
+SABIO|Sl 119:98; Pr 3:7; Pr 9:9; Pr 27:11
+JESUS|Mt 1:21
+RUEGO|Snt 5:16
+GRADO|Jer 30:11
+VEJEZ|Sl 71:9; Sl 92:14
+JONAS|Jon 2:1
+DOLOR|Ro 8:22; Ro 9:2
+OVEJA|Is 53:7
+JUDIO|Zac 8:23; 1Co 9:20
+ANGEL|2Re 19:35; Sl 34:7; Da 3:28; Os 12:4; Hch 5:19; Hch 12:11
+VOTAR|Lu 23:51
+AMIGO|2Cr 20:7; Pr 17:17; Pr 18:24; Pr 27:6; Snt 2:23; Snt 4:4
+CALVO|Le 13:40; 2Re 2:23
+HACHA|Ec 10:10
+CALMA|Pr 17:27; Lu 12:19
+DAVID|1Sa 16:13; Lu 1:32; Hch 2:34
+AMADO|Mt 3:17
+JUDAS|Mt 27:3
+ROPAS|Gé 3:21
+DUDAS|Jud 22
+AYUNO|Is 58:6
+REDES|Lu 5:4
+BOZAL|Dt 25:4
+MATAR|Jn 16:2
+AGUAS|Pr 20:5; Jer 50:38; Zac 14:8; Ap 7:17; Ap 17:1
+LLAVE|Lu 11:52
+LECHE|Éx 3:8; Is 60:16; Heb 5:12; 1Pe 2:2
+JOVEN|Job 33:25; Sl 71:17; Mr 10:20
+VALER|Mt 6:26
+OBRAS|Ne 4:6; Sl 104:24; Jn 14:12; Heb 9:14
+SUENO|Ro 13:11
+MIEDO|Gé 9:2; 2Cr 20:15; Sl 56:4; Sl 118:6; Is 41:10; Is 44:8; Lu 21:26; Flp 1:28; Ap 2:10
+GUIAR|Sl 48:14
+BOTIN|Jer 39:18
+PEDRO|Mt 14:29; Lu 22:54; Jn 18:10; Hch 12:5
+COSAS|2Co 4:18
+BELEN|Miq 5:2
+LUCHA|Ef 6:12
+FUEGO|Jer 20:9; Mt 25:41; 1Co 3:13; 1Te 5:19; 2Ti 1:6; 2Pe 3:7
+MORIR|Gé 3:4; Job 14:14; Jn 11:25; Jn 11:26; Ro 14:8; 2Co 5:15
+RAZON|Ec 7:25
+CALEB|Nú 13:30; Nú 14:24
+ELIAS|Snt 5:17
+REINO|Éx 19:6; Da 2:44; Da 7:14; Da 7:18; Mt 6:10; Mt 6:33; Mt 21:43; Mt 25:34; Lu 12:32; Lu 22:29; Jn 18:36; Hch 1:6; 1Co 15:24; Gál 5:21; Col 1:13; Ap 1:6; Ap 11:15
+CARGA|Sl 38:4; Sl 55:22; Gál 6:5; 1Te 2:6; Heb 12:1; 1Jn 5:3; Ap 2:24
+MAGIA|Dt 18:10; Hch 19:19
+TORRE|Gé 11:4; Pr 18:10; Lu 13:4
+REGAR|1Co 3:6
+POBRE|1Sa 2:8; 2Co 8:9
+DIGNA|1Co 14:40; Ef 4:1; Col 1:10
+RICOS|Lu 14:12; 2Co 6:10; 1Ti 6:9; 1Ti 6:17
+MALTA|Hch 28:1
+PENAS|Sl 90:10
+ERROR|Job 6:24
+REINA|1Re 10:1
+NEGAR|Mr 14:30
+CIEGO|Le 19:14
+AYUDA|Sl 46:1
+TOCAR|Pr 6:29; Is 52:11; Mt 7:7; Mt 8:3; 2Co 6:17
+COPIA|Dt 17:18
+HOJAS|Eze 47:12; Mt 24:32
+SACAR|Pr 17:9; 1Co 5:13
+CASAS|Is 65:21; Hch 7:48
+LOBOS|Mt 7:15; Lu 10:3; Hch 20:29
+CEFAS|1Co 15:5; Gál 2:11
+MENTE|Mt 22:37; Ro 7:25; 1Co 2:16; Flp 3:19; Col 3:2
+CAZAR|Le 17:13
+HIJAS|Joe 2:28; Hch 21:9; 2Co 6:18
+IGUAL|Flp 2:6
+GALLO|Mt 26:34
+TRAER|Jn 6:44
+TODAS|Flp 4:8
+ROCIO|Dt 32:2
+LAVAR|Sl 51:2; Jn 13:5
+VIGOR|Is 40:29
+ALMAS|Nú 31:28
+HADES|Ver TUMBA.
+PECAR|Gé 39:9; 2Sa 12:13; 1Re 8:46; Ro 3:23; Snt 4:17
+EDUCA|Pr 22:6
+SANTO|Éx 26:33; Le 19:2; Ap 4:8
+GOTAS|Sl 110:3
+ROBAR|Éx 20:15; Le 19:13; Pr 30:9; Ef 4:28
+SORDO|Le 19:14; Is 35:5; Mr 7:37
+MADRE|Éx 20:12; Sl 27:10; Pr 23:22; Lu 8:21; Jn 19:27; Gál 4:26
+DUENO|Mt 9:38
+TUMBA|Job 14:13; Ec 9:10; Os 13:14; Hch 2:31; Ap 1:18; Ap 20:13
+MUNDO|Lu 9:25; Jn 15:19; Jn 17:16; 1Jn 2:15; 1Jn 2:17
+NIEVE|Is 1:18
+CERDA|2Pe 2:22
+VINAS|Is 65:21
+SECTA|Hch 28:22; Tit 3:10
+ORDEN|1Co 15:23
+JUEGO|Pr 10:23
+SANAR|Sl 147:3
+BABEL|Gé 11:9
+JEFTE|Jue 11:30
+PADRE|Gé 2:24; Sl 2:7; Sl 89:26; Sl 103:13; Is 9:6; Mt 6:9; Mt 23:9; Lu 2:49; Lu 15:20; Jn 5:20; Jn 10:30; Jn 14:6; Jn 14:9; Jn 14:28
+PACES|Mt 5:24
+CAMPO|Mt 13:38; 1Co 3:9
+CREER|Jn 20:29; 2Te 2:12
+ROGAR|Ro 8:34; 2Co 5:20; 1Ti 2:1; Flm 9
+LIBRO|Éx 32:33; Jos 1:8; Mal 3:16; Ap 20:15
+VIUDA|Sl 146:9; Mr 12:43; Lu 18:3
+MALOS|Sl 37:9
+NOCHE|Sl 19:2; Ro 13:12
+DEUDA|Ro 1:14
+FIRME|Sl 26:12
+PECES|Jn 21:11
+SENAL|Mt 24:3; Mt 24:30
+MECHA|Is 42:3
+DEJAR|Is 1:28; Mt 19:29
+SANAS|2Ti 1:13
+ARMAS|2Co 10:4
+PABLO|1Co 1:12 Ver también SAULO
+DONES|Ro 12:6
+TRIGO|Mt 13:25
+HONRA|Éx 20:12; Pr 3:9; 1Ti 5:17
+JURAR|Gé 22:16; Mt 5:34
+FALSO|Mt 26:59
+POLVO|Gé 2:7; Gé 3:19; Sl 103:14; Is 40:15
+NATAN|2Sa 12:7
+MAGOG|Eze 38:2
+BARRO|Is 45:9; Is 64:8; Da 2:42
+JUSTO|Gé 15:6; Sl 34:19; Sl 37:25; Sl 72:7; Sl 141:5; Pr 24:16
+CUEVA|Mt 21:13
+SIMON|Hch 8:18
+VENIR|Is 55:1; Ap 22:17
+MANOS|Is 35:3; 1Pe 4:19
+PERRO|Pr 26:17; Ec 9:4; 2Pe 2:22
+DUDAR|Mt 21:21; Snt 1:6
+HIJOS|Gé 1:28; Gé 6:2; 1Sa 8:3; Job 38:7; Is 54:13; Is 66:8; Ro 8:14; Ro 8:21; 1Co 7:14; 2Co 12:14; Ef 6:1; 1Jn 3:2
+NUEVO|Jn 13:34; Ap 21:1
+NOBLE|1Co 1:26
+FAVOR|Is 26:10
+CREAR|Gé 1:1; Sl 104:30; Is 45:18; Col 1:16; Ap 4:11
+LEPRA|Nú 12:10; Lu 5:12
+FINAL|Is 2:2; Is 46:10; Jn 13:1
+REYES|Pr 22:29; Lu 21:12; Hch 4:26; Ap 18:3
+PARTE|Lam 3:24; Da 12:13
+ARADO|Lu 9:62
+ALTAR|Gé 8:20; Éx 27:1; Mt 5:24; Hch 17:23
+EFESO|1Co 15:32
+TEMER|Job 31:34; Lu 12:4
+EXITO|1Re 2:3; Sl 1:3; Is 55:11
+MUJER|Gé 3:15; Ec 7:26; Ap 12:1
+LENTO|2Pe 3:9
+TARDE|Hab 2:3
+MAYOR|Jn 14:28
+NUBES|Ec 11:4; Mt 24:30
+BURRA|Nú 22:28
+SINAI|Éx 19:20
+LIBROS|Ec 12:12; Hch 19:19
+ESCUDO|Sl 84:11; Ef 6:16
+HAMBRE|Sl 37:19; Is 65:13; Am 8:11; Mt 24:7
+VENDAR|Is 61:1; Eze 34:16
+EVODIA|Flp 4:2
+IMPURO|Le 13:45; Job 14:4
+SABADO|Éx 20:8; Mt 12:8; Mr 2:27; Lu 14:5; Col 2:16
+PASION|Ro 1:26; Ro 1:27; Col 3:5; 1Te 4:5
+POETAS|Hch 17:28
+REUNIR|Ef 1:10
+EGIPTO|Mt 2:15
+PELEAR|2Cr 20:17; 1Ti 6:12; 2Ti 2:24
+JARDIN|Gé 2:15
+GABAON|Jos 9:3
+ABISMO|Ap 11:7; Ap 17:8; Ap 20:3
+DINERO|Ec 7:12; Ec 10:19; 1Ti 6:10; Heb 13:5
+FRENTE|Eze 3:9; Eze 9:4
+PIEDRA|Da 2:34; Mt 21:42
+PRECIO|1Co 7:23
+FRAGIL|1Pe 3:7
+ABUSAR|1Co 9:18
+AMABLE|Pr 25:15; 2Ti 2:24
+GOLIAT|1Sa 17:4
+POBRES|Sl 9:18; Sl 69:33; Lu 4:18; Jn 12:8; 2Co 6:10; 2Co 8:2; Gál 2:10
+CLAVAR|1Sa 18:11
+BUSCAR|1Cr 28:9; Is 55:6; Eze 34:11; Sof 2:3; Lu 15:8; Jn 4:23; Hch 17:27; Ro 14:19; Col 3:1
+PANICO|Is 28:16
+DEUDAS|Mt 6:12
+CALLAR|Sl 4:4; 1Pe 2:15
+REINOS|Mt 4:8
+PLANOS|1Re 6:38
+PADRES|Lu 18:29; Lu 21:16; 2Co 12:14; Ef 6:1; Col 3:20
+PLANES|Pr 15:22; Pr 19:21; Ro 13:14
+TEMPLO|Sl 11:4; Sl 27:4; Jer 7:4; Eze 41:13; Mal 3:1; Mt 21:12; Jn 2:19; 1Co 3:16
+MENTIR|Col 3:9; Tit 1:2
+MUERTO|Lu 15:24
+TARDAR|Pr 13:12; Is 46:13; Lu 12:45
+ACEITE|1Re 17:16; Mt 25:4; Mr 14:4
+MANANA|Pr 27:1; 1Co 15:32
+ANIMAL|Gé 7:2; Le 18:23
+FELIPE|Hch 8:26; Hch 21:8
+SAMUEL|1Sa 1:20; 1Sa 2:18
+SEMANA|1Co 16:2
+ARARAT|Gé 8:4
+PUESTO|Hch 1:20
+DORCAS|Hch 9:36
+VERANO|Mt 24:32
+CORRER|1Co 9:24; Gál 5:7
+COMIDA|Hch 14:17; 1Co 8:13
+CIELOS|Sl 8:3; Sl 19:1; 2Pe 3:13
+SOMBRA|1Cr 29:15; Sl 91:1; Col 2:17
+COJEAR|1Re 18:21
+TERROR|Pr 3:25
+DORMIR|2Co 6:5; 2Co 11:27; 1Te 5:6
+ESDRAS|Esd 7:11
+POMADA|Ap 3:18
+GUERRA|Is 2:4; Os 2:18; Ap 12:7; Ap 16:14
+ZORROS|Mt 8:20
+ESPADA|Mt 26:52; Ef 6:17; Heb 4:12
+SANSON|Jue 13:24
+ROLLOS|Ap 20:12
+DIEZMO|Mal 3:10
+LENTOS|Heb 5:11; Snt 1:19
+OBRERO|Pr 8:30
+MARCOS|Col 4:10
+CIUDAD|Heb 11:10
+CONTRA|Hch 17:7; Ro 8:31
+FALSOS|Gál 2:4
+LENGUA|Sl 34:13; Pr 18:21; Is 35:6; Is 50:4; Snt 1:26; Snt 3:8
+IRREAL|Is 41:29
+ESPINA|2Co 12:7
+SALVAR|2Cr 20:17; Is 59:1; Mt 16:25; Lu 19:10
+MIGUEL|Da 10:13; Da 12:1; Ap 12:7
+MEDIUM|Dt 18:11
+ANSIAR|Job 14:15
+LIMPIO|Hch 20:26
+VISION|Da 10:14
+MORDER|Gál 5:15
+MOISES|Nú 12:3; Sl 106:32; Hch 7:22; 2Co 3:7
+GRANDE|1Jn 3:20
+ADULTO|Ef 4:13
+MEDIDA|Lu 6:38
+LLUVIAS|Is 55:10; Mt 5:45
+GASTOS|Lu 14:28
+RAICES|Lu 8:13
+SEQUIA|Jer 17:8
+FRUTOS|Mt 7:20; Mt 21:43
+NOBLES|Hch 17:11
+LIRIOS|Lu 12:27
+LLOVER|Gé 7:12
+FLECOS|Nú 15:39
+TACANO|Pr 23:6
+HIERRO|Pr 27:17; Is 60:17; Da 2:43
+ACTUAR|1Pe 1:13
+PASCUA|Éx 12:11; Éx 12:27; 1Co 5:7
+TARSIS|Jon 1:3
+CARGAS|Sl 68:19; Lu 11:46; Hch 15:28; Gál 6:2
+CABEZA|Gé 3:15; Da 2:32; Jn 10:20; 1Co 11:3; Ef 5:23
+EXCUSA|Jn 15:22; Ro 1:20; Jud 4
+AHOGAR|Mr 4:19
+GLORIA|Ro 3:23; Ro 8:18; 1Co 10:31; Ap 4:11
+ANIMAR|Ro 1:12; 1Co 14:31; Col 3:16; Tit 1:9; Heb 10:25
+FIERAS|Le 26:6; Eze 34:25
+TRONOS|Da 7:9
+ESTIMA|Flp 2:29; 1Te 5:13
+SERVIR|Jos 24:15; 1Sa 2:11; 1Cr 28:9; Sl 100:2; Da 7:10; Mt 20:28; Mr 10:43; 1Pe 4:10
+DIABLO|Mt 25:41; Lu 4:6; Lu 8:12; Jn 8:44; Ef 4:27; Ef 6:11; Snt 4:7; 1Pe 5:8; 1Jn 3:8; Ap 12:12; Ap 20:10
+VELLON|Jue 6:37
+ELEGIR|Jos 24:15
+DERIVA|Heb 2:1
+JEHOVA|Éx 3:15; Éx 5:2; Éx 6:3; Éx 20:7; Dt 6:5; Dt 7:9; Sl 83:18; Is 42:8; Os 12:5; Mal 3:6; Mr 12:29
+CONTAR|Sl 90:12
+ADORAR|Mt 4:10; Jn 4:24
+FIELES|1Co 4:2
+MADERO|Mr 15:25; Lu 23:21; Gál 3:13
+JOSIAS|2Re 22:1
+MANSOS|Sl 37:11; Sof 2:3
+ANORAR|Sl 84:2
+EPOCAS|Da 2:21; Hch 1:7; 1Te 5:1
+IMAGEN|Gé 1:26; Éx 20:4
+MANERA|Hch 1:11; Flp 1:27
+SIERVO|Is 42:1
+RAQUEL|Gé 29:18; Jer 31:15
+TRAMPA|Sl 91:3; Pr 29:25; Lu 21:34,35
+CARROS|Jue 4:13; 2Re 6:17
+SUENOS|Ec 5:3
+JUSTOS|1Pe 3:12
+`; // (aquí va tu listado completo de palabras y pistas, igual que antes)
+
+/* ===== PROCESADO AUTOMATICO ===== */
+const datos = textoDatos
+  .trim()
+  .split("\n")
+  .map(l=>{
+    const [palabra,pista]=l.split("|");
+    return { palabra: palabra.trim(), pista: pista.trim() };
+  });
+
+/* ===== PALABRA DEL DIA ===== */
+const hoy=new Date();
+const inicio=new Date(hoy.getFullYear(),0,0);
+const dia=Math.floor((hoy-inicio)/86400000);
+const dato=datos[dia%datos.length];
+const palabra=dato.palabra;
+const pista=dato.pista;
+
+/* ===== VARIABLES ===== */
+const maxIntentos=7;
+let filaActual=0;
+let letrasFila=0;
+let tiempo=0;
+let timer=null;
+let cronometroIniciado=false;
+
+const tablero=document.getElementById("tablero");
+const mensaje=document.getElementById("mensaje");
+const teclado=document.getElementById("teclado");
+const btnWhatsapp=document.getElementById("whatsapp");
+
+/* ===== CRONOMETRO ===== */
+function iniciarCronometro(){
+  if(cronometroIniciado) return;
+  cronometroIniciado=true;
+  timer=setInterval(()=>{
+    tiempo++;
+    const m=String(Math.floor(tiempo/60)).padStart(2,"0");
+    const s=String(tiempo%60).padStart(2,"0");
+    document.getElementById("cronometro").textContent=`${m}:${s}`;
+  },1000);
+}
+
+/* ===== TABLERO ===== */
+for(let i=0;i<maxIntentos;i++){
+  const fila=document.createElement("div");
+  fila.className="fila";
+  fila.style.gridTemplateColumns=`repeat(${palabra.length},1fr)`;
+  for(let j=0;j<palabra.length;j++){
+    fila.appendChild(document.createElement("div")).className="cuadro";
+  }
+  tablero.appendChild(fila);
+}
+
+/* ===== TECLADO ===== */
+const layout=[
+  ["Q","W","E","R","T","Y","U","I","O","P","DEL"],
+  ["A","S","D","F","G","H","J","K","L","Ñ","ENTER"],
+  ["Z","X","C","V","B","N","M"]
+];
+
+layout.forEach(f=>{
+  const fila=document.createElement("div");
+  fila.className="fila-tecla";
+  f.forEach(k=>{
+    const b=document.createElement("button");
+    b.textContent=k==="DEL"?"⌫":k==="ENTER"?"⏎":k;
+    b.dataset.key=k;
+    b.className="tecla";
+    if(k==="ENTER") b.classList.add("enter");
+    if(k==="DEL") b.classList.add("del");
+    b.onclick=()=>tecla(k);
+    fila.appendChild(b);
+  });
+  teclado.appendChild(fila);
+});
+
+/* ===== LOGICA ===== */
+function tecla(k){
+  if(k==="DEL") borrar();
+  else if(k==="ENTER") enviar();
+  else escribir(k);
+}
+
+function escribir(l){
+  if(letrasFila>=palabra.length) return;
+  iniciarCronometro();
+  const c=tablero.children[filaActual].children[letrasFila];
+  c.textContent=l;
+  letrasFila++;
+}
+
+function borrar(){
+  if(letrasFila===0) return;
+  letrasFila--;
+  tablero.children[filaActual].children[letrasFila].textContent="";
+}
+
+function enviar(){
+  if(letrasFila!==palabra.length) return;
+
+  const fila=tablero.children[filaActual];
+  const intento=[...fila.children].map(c=>c.textContent).join("");
+
+  const usadas=Array(palabra.length).fill(false);
+  const marcas=Array(palabra.length).fill("gris");
+
+  for(let i=0;i<palabra.length;i++){
+    if(intento[i]===palabra[i]){
+      marcas[i]="verde";
+      usadas[i]=true;
+    }
+  }
+
+  for(let i=0;i<palabra.length;i++){
+    if(marcas[i]!=="verde"){
+      for(let j=0;j<palabra.length;j++){
+        if(!usadas[j] && intento[i]===palabra[j]){
+          marcas[i]="amarillo";
+          usadas[j]=true;
+          break;
+        }
+      }
+    }
+  }
+
+  marcas.forEach((m,i)=>{
+    fila.children[i].classList.add(m);
+    colorearTecla(intento[i],m);
+  });
+
+  if(intento===palabra){
+    mensaje.textContent=`¡Felicidades! Acertaste en ${filaActual+1} intentos.`;
+    clearInterval(timer);
+    btnWhatsapp.style.display="inline-block";
+    return;
+  }
+
+  filaActual++;
+  letrasFila=0;
+
+  if(filaActual===6){
+    mensaje.textContent=`Pista: ${pista}`;
+  }
+  if(filaActual===7){
+    mensaje.textContent=`No acertaste. La palabra correcta era: ${palabra}`;
+    clearInterval(timer);
+    btnWhatsapp.style.display="inline-block";
+  }
+}
+
+function colorearTecla(l,c){
+  document.querySelectorAll(".tecla").forEach(t=>{
+    if(t.dataset.key===l){
+      if(t.classList.contains("verde")) return;
+      if(t.classList.contains("amarillo") && c==="gris") return;
+      t.classList.remove("gris","amarillo","verde");
+      t.classList.add(c);
+    }
+  });
+}
+
+/* ===== TECLADO FISICO ===== */
+document.addEventListener("keydown",e=>{
+  const k=e.key.toUpperCase();
+  if(k==="ENTER") tecla("ENTER");
+  else if(k==="BACKSPACE") tecla("DEL");
+  else if(k==="Ñ") tecla("Ñ");
+  else if(/^[A-Z]$/.test(k)) tecla(k);
+});
+
+/* ===== WHATSAPP ===== */
+btnWhatsapp.onclick=()=>{
+  const tiempoTxt=document.getElementById("cronometro").textContent;
+  const txt=`Palabra Secreta\nIntentos: ${filaActual}/${maxIntentos}\nTiempo: ${tiempoTxt}`;
+  window.open("https://api.whatsapp.com/send?text="+encodeURIComponent(txt));
+};
+</script>
+
+</body>
+</html>
